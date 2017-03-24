@@ -31,6 +31,7 @@
     "postinstall": "bower install",
     "webdriver-start": "./node_modules/protractor/bin/webdriver-manager start",
     "protractor": "./node_modules/protractor/bin/protractor spec/e2e/conf.js",
+    "saucelabs": "./node_modules/protractor/bin/protractor spec/e2e/conf-saucelabs.js",
     "e2e": "npm-run-all -s -p -r webdriver-start protractor"
   },
   "license": "GNU GENERAL PUBLIC LICENSE",

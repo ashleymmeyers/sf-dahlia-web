@@ -60,6 +60,7 @@ ListingService = ($http, $localStorage, $modal, $q, $state, $translate) ->
     neighborhoodResidence: "Neighborhood Resident Housing Preference (NRHP)"
     assistedHousing: "Assisted Housing / Rent Burden Preference"
     rentBurden: "Assisted Housing / Rent Burden Preference"
+    antiDisplacement: "Anti-Displacement Housing Preference (ADHP)"
 
   # Create a mapping to Salesforce naming conventions
   Service.RESERVED_TYPES = {

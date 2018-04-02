@@ -2,7 +2,7 @@
 ####################################### SERVICE ############################################
 ############################################################################################
 
-ListingService = ($http, $localStorage, $modal, $q, $state, $translate, ModalService) ->
+ListingService = ($http, $localStorage, $q, $state, $translate, ModalService) ->
   Service = {}
   MAINTENANCE_LISTINGS = [] unless MAINTENANCE_LISTINGS
   Service.listing = {}
@@ -22,7 +22,6 @@ ListingService = ($http, $localStorage, $modal, $q, $state, $translate, ModalSer
   Service.lotteryRankingInfo = {}
   Service.lotteryBucketInfo = {}
   Service.toggleStates = {}
-  Service.forceRecache = false
 
   Service.listingDownloadURLs = []
   Service.defaultApplicationURLs = [
@@ -231,7 +230,7 @@ ListingService = ($http, $localStorage, $modal, $q, $state, $translate, ModalSer
 
   ###################################### Salesforce API Calls ###################################
 
-  Service.getListing = (_id) ->
+  Service.getListing = (_id, forceRecache = false) ->
     _id = Service.mapSlugToId(_id)
 
     if Service.listing && Service.listing.Id == _id
@@ -240,9 +239,10 @@ ListingService = ($http, $localStorage, $modal, $q, $state, $translate, ModalSer
     Service.resetListingData()
 
     deferred = $q.defer()
-    $http.get("/api/v1/listings/#{_id}.json#{if Service.forceRecache then '?force=true' else ''}",
-      { etagCache: true }
-    ).success(
+    httpConfig = { etagCache: true }
+    httpConfig.params = { force: true } if forceRecache
+    $http.get("/api/v1/listings/#{_id}.json", httpConfig)
+    .success(
       Service.getListingResponse(deferred)
     ).cached(
       Service.getListingResponse(deferred)
@@ -466,11 +466,13 @@ ListingService = ($http, $localStorage, $modal, $q, $state, $translate, ModalSer
           i++
     charts
 
-  Service.getListingUnits = ->
+  Service.getListingUnits = (forceRecache = false) ->
     # angular.copy([], Service.listing.Units)
     Service.loading.units = true
     Service.error.units = false
-    $http.get("/api/v1/listings/#{Service.listing.Id}/units#{if Service.forceRecache then '?force=true' else ''}")
+    httpConfig = {}
+    httpConfig.params = { force: true } if forceRecache
+    $http.get("/api/v1/listings/#{Service.listing.Id}/units", httpConfig)
     .success((data, status, headers, config) ->
       Service.loading.units = false
       Service.error.units = false
@@ -580,7 +582,7 @@ ListingService = ($http, $localStorage, $modal, $q, $state, $translate, ModalSer
     _.map listing[specialType], (descriptor) ->
       descriptor.name
 
-  Service.getListingPreferences = ->
+  Service.getListingPreferences = (forceRecache = false) ->
     Service.loading.preferences = true
     Service.error.preferences = false
     # TODO: -- REMOVE HARDCODED FEATURES --
@@ -589,7 +591,9 @@ ListingService = ($http, $localStorage, $modal, $q, $state, $translate, ModalSer
     if !_.isEmpty(Service.listing.preferences)
       return $q.when(Service.listing.preferences)
     ## <--
-    $http.get("/api/v1/listings/#{Service.listing.Id}/preferences#{if Service.forceRecache then '?force=true' else ''}")
+    httpConfig = { etagCache: true }
+    httpConfig.params = { force: true } if forceRecache
+    $http.get("/api/v1/listings/#{Service.listing.Id}/preferences", httpConfig)
     .success((data, status, headers, config) ->
       if data && data.preferences
         Service.listing.preferences = data.preferences
@@ -630,7 +634,7 @@ ListingService = ($http, $localStorage, $modal, $q, $state, $translate, ModalSer
     lotteryNumber
 
   Service.getLotteryRanking = (lotteryNumber) ->
-    angular.copy({}, Service.lotteryRankingInfo)
+    angular.copy({submitted: false}, Service.lotteryRankingInfo)
     params =
       params:
         lottery_number: lotteryNumber
@@ -639,6 +643,7 @@ ListingService = ($http, $localStorage, $modal, $q, $state, $translate, ModalSer
     $http.get("/api/v1/listings/#{Service.listing.Id}/lottery_ranking", params).success((data, status, headers, config) ->
       angular.copy(data, Service.lotteryRankingInfo)
       Service.loading.lotteryRank = false
+      Service.lotteryRankingInfo.submitted = true
     ).error( (data, status, headers, config) ->
       Service.loading.lotteryRank = false
       Service.error.lotteryRank = true
@@ -662,7 +667,11 @@ ListingService = ($http, $localStorage, $modal, $q, $state, $translate, ModalSer
     # We add '+ 2' for 2 children under 6 as part of householdsize but not occupancy
     max = occupancyMinMax[1] + 2
     # TO DO: Hardcoded Temp fix, take this and replace with long term solution
-    if Service.listingIs('Merry Go Round Shared Housing') || Service.listingIs('1335 Folsom Street')
+    if(
+      Service.listingIs('Merry Go Round Shared Housing') ||
+      Service.listingIs('1335 Folsom Street') ||
+      Service.listingIs('750 Harrison Street')
+    )
       max = 2
     else if Service.listingHasOnlySROUnits(listing)
       max = 1
@@ -672,7 +681,11 @@ ListingService = ($http, $localStorage, $modal, $q, $state, $translate, ModalSer
 
   Service.householdAMIChartCutoff = ->
     # TO DO: Hardcoded Temp fix, take this and replace with long term solution
-    if Service.listingIs('Merry Go Round Shared Housing') || Service.listingIs('1335 Folsom Street')
+    if(
+      Service.listingIs('Merry Go Round Shared Housing') ||
+      Service.listingIs('1335 Folsom Street') ||
+      Service.listingIs('750 Harrison Street')
+    )
       return 2
     else if Service.listingHasOnlySROUnits(Service.listing)
       return 1
@@ -740,6 +753,7 @@ ListingService = ($http, $localStorage, $modal, $q, $state, $translate, ModalSer
     'a0W0P00000F6lBXUAZ': 'Transbay Block 7'
     'a0W0P00000F7t4uUAB': 'Merry Go Round Shared Housing'
     'a0W0P00000FIuv3UAD': '1335 Folsom Street'
+    'a0W0P00000DhM0wUAF': '750 Harrison Street'
   }
 
   Service.mapSlugToId = (id) ->
@@ -892,7 +906,7 @@ ListingService = ($http, $localStorage, $modal, $q, $state, $translate, ModalSer
 ######################################## CONFIG ############################################
 ############################################################################################
 
-ListingService.$inject = ['$http', '$localStorage', '$modal', '$q', '$state', '$translate', 'ModalService']
+ListingService.$inject = ['$http', '$localStorage', '$q', '$state', '$translate', 'ModalService']
 
 angular
   .module('dahlia.services')
